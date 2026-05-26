@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dosya Temizleyici</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="side-panel"></div>
+    <div id="app">
+      <div id="header">
+        <div id="breadcrumb"></div>
+        <div id="header-right">
+          <span id="ml-status" class="ml-status">N/A</span>
+          <div id="progress-text"></div>
+          <button class="btn-icon" onclick="openDuplicateFinder()" title="Yinelenen Dosyalar">🔍</button>
+          <button class="btn-icon" onclick="goToStart()" title="Başa Dön">🏠</button>
+          <button class="btn-icon btn-icon-quit" onclick="quitApp()" title="Çık">✕</button>
+        </div>
+      </div>
+      <div id="search-bar"></div>
+      <div id="filter-bar"></div>
+      <div id="sort-bar"></div>
+      <div id="card-area">
+        <div id="card-stack"></div>
+        <div id="hint-bar">
+          <span><kbd>←</kbd> Tut</span>
+          <span><kbd>↑</kbd> Klasöre Gir</span>
+          <span><kbd>→</kbd> Sil</span>
+          <span><kbd>↓</kbd> Geri Dön</span>
+        </div>
+      </div>
+      <div id="action-bar">
+        <button class="btn btn-keep" id="btn-keep">✅ Tut</button>
+        <button class="btn btn-back" id="btn-back">⬅ Geri</button>
+        <button class="btn btn-enter" id="btn-enter">📂 Gir</button>
+        <button class="btn btn-delete" id="btn-delete">🗑 Sil</button>
+      </div>
+      <div id="stats">
+        <div class="stat"><span id="stat-kept">0</span><small>tutuldu</small></div>
+        <div class="stat"><span id="stat-deleted">0</span><small>silindi</small></div>
+        <div class="stat"><span id="stat-remain">0</span><small>kaldı</small></div>
+      </div>
+      <div id="queue-bar"></div>
+    </div>
+    <div id="toast"></div>
+    <div id="confirm-overlay" class="hidden">
+      <div id="confirm-box">
+        <div id="confirm-icon">🗑️</div>
+        <div id="confirm-name"></div>
+        <div id="confirm-msg">Bu dosyayı kalıcı olarak silmek istediğine emin misin?</div>
+        <div id="confirm-buttons">
+          <button id="confirm-yes">Evet, Sil</button>
+          <button id="confirm-no">İptal</button>
+        </div>
+      </div>
+    </div>
+    <script src="main.js"></script>
+  </body>
+</html>

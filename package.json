@@ -1,0 +1,23 @@
+{
+  "name": "swipedel",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "check:js": "node --check src/main.js",
+    "check:rust": "cargo check --manifest-path src-tauri/Cargo.toml",
+    "check": "npm run check:js && npm run check:rust",
+    "prepush": "npm run check && npm run build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  },
+  "dependencies": {
+    "@tauri-apps/plugin-dialog": "^2.7.1",
+    "@tauri-apps/plugin-opener": "^2.5.4",
+    "@tauri-apps/plugin-process": "^2.3.1"
+  }
+}
