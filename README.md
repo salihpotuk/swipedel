@@ -1,4 +1,4 @@
-# SwipeDel (`fast_cleaner`)
+# swclit (`fast_cleaner`)
 
 Tauri + Vanilla JS desktop file cleaner with:
 - Swipe-based keep/delete UX

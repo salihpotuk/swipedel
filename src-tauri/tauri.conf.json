@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "SwipeDel",
+  "productName": "swclit",
   "version": "0.1.0",
-  "identifier": "com.salih.swipedel",
+  "identifier": "com.salih.swclit",
   "build": {
     "frontendDist": "../src"
   },
@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "SwipeDel",
+        "title": "swclit",
         "width": 900,
         "height": 700
       }

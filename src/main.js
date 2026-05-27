@@ -2,7 +2,7 @@ let currentLang = localStorage.getItem('lang') || 'tr';
 
 const STRINGS = {
   tr: {
-    appName: 'SwipeDel',
+    appName: 'swclit',
     appSub: 'Temizlemek istediğin klasörü seç',
     selectFolder: '📁 Klasör Seç',
     startHome: '🏠 Ana Klasörden Başla',
@@ -178,7 +178,7 @@ const STRINGS = {
     langEn: '🇬🇧 English',
   },
   en: {
-    appName: 'SwipeDel',
+    appName: 'swclit',
     appSub: 'Select the folder you want to clean',
     selectFolder: '📁 Select Folder',
     startHome: '🏠 Start from Home',
@@ -702,7 +702,7 @@ function showStartScreen() {
   stack.innerHTML = `
     <div id="start-screen">
       <div class="start-logo">
-        <img src="swipedel-logo.png" alt="SwipeDel" style="width:140px;height:140px;object-fit:contain;border-radius:50%;display:block;margin:0 auto" />
+        <img src="swipedel-logo.png" alt="swclit" style="width:140px;height:140px;object-fit:contain;border-radius:50%;display:block;margin:0 auto" />
       </div>
       <div class="start-title">${t('appName')}</div>
       <div class="start-sub">${t('appSub')}</div>
@@ -728,7 +728,7 @@ function showLoadingStartScreen(message) {
   stack.innerHTML = `
     <div id="start-screen">
       <div class="start-logo">
-        <img src="swipedel-logo.png" alt="SwipeDel" style="width:140px;height:140px;object-fit:contain;border-radius:50%;display:block;margin:0 auto;opacity:0.9" />
+        <img src="swipedel-logo.png" alt="swclit" style="width:140px;height:140px;object-fit:contain;border-radius:50%;display:block;margin:0 auto;opacity:0.9" />
       </div>
       <div class="start-title">${t('appName')}</div>
       <div class="start-sub">${message}</div>
@@ -1653,7 +1653,7 @@ function exportBackupReport() {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `swipedel-delete-report-${Date.now()}.csv`;
+  anchor.download = `swclit-delete-report-${Date.now()}.csv`;
   anchor.click();
   URL.revokeObjectURL(url);
   showToast(t('backupExported'));
