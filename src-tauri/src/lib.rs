@@ -19,6 +19,12 @@ pub struct FileItem {
     risk_reason: String,
 }
 
+#[derive(Serialize)]
+struct DeleteBatchResult {
+    deleted_paths: Vec<String>,
+    failed_paths: Vec<String>,
+}
+
 #[derive(Deserialize)]
 struct BoosterFile {
     learner: Learner,
@@ -420,6 +426,64 @@ fn delete_file(path: String) -> Result<(), String> {
     trash::delete(&path).map_err(|e| e.to_string())
 }
 
+#[tauri::command(async)]
+fn delete_files_batch(paths: Vec<String>, app: tauri::AppHandle) -> Result<DeleteBatchResult, String> {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
+
+    let total = paths.len();
+    let _ = app.emit("delete-progress", serde_json::json!({ "stage": "start", "current": 0, "total": total }));
+
+    let processed = Arc::new(AtomicUsize::new(0));
+    let deleted_paths = Arc::new(Mutex::new(Vec::<String>::new()));
+    let failed_paths = Arc::new(Mutex::new(Vec::<String>::new()));
+
+    paths.into_par_iter().for_each(|path| {
+        let deleted_ok = trash::delete(&path).is_ok();
+        if deleted_ok {
+            match deleted_paths.lock() {
+                Ok(mut ok) => ok.push(path),
+                Err(poisoned) => poisoned.into_inner().push(path),
+            }
+        } else {
+            match failed_paths.lock() {
+                Ok(mut failed) => failed.push(path),
+                Err(poisoned) => poisoned.into_inner().push(path),
+            }
+        }
+
+        let current = processed.fetch_add(1, Ordering::Relaxed) + 1;
+        if current % 5 == 0 || current == total {
+            let _ = app.emit("delete-progress", serde_json::json!({ "stage": "progress", "current": current, "total": total }));
+        }
+    });
+
+    let _ = app.emit("delete-progress", serde_json::json!({ "stage": "done", "current": total, "total": total }));
+
+    let deleted_paths = match Arc::try_unwrap(deleted_paths) {
+        Ok(mutex) => match mutex.into_inner() {
+            Ok(v) => v,
+            Err(poisoned) => poisoned.into_inner(),
+        },
+        Err(arc) => match arc.lock() {
+            Ok(guard) => guard.clone(),
+            Err(poisoned) => poisoned.into_inner().clone(),
+        },
+    };
+    let failed_paths = match Arc::try_unwrap(failed_paths) {
+        Ok(mutex) => match mutex.into_inner() {
+            Ok(v) => v,
+            Err(poisoned) => poisoned.into_inner(),
+        },
+        Err(arc) => match arc.lock() {
+            Ok(guard) => guard.clone(),
+            Err(poisoned) => poisoned.into_inner().clone(),
+        },
+    };
+
+    Ok(DeleteBatchResult { deleted_paths, failed_paths })
+}
+
 #[tauri::command]
 fn get_home_dir() -> String {
     dirs::home_dir()
@@ -795,7 +859,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![list_directory, delete_file, get_home_dir, get_risk_engine_status, pick_folder, open_in_explorer, get_image_thumbnail, open_file, read_text_file, find_duplicates])
+        .invoke_handler(tauri::generate_handler![list_directory, delete_file, delete_files_batch, get_home_dir, get_risk_engine_status, pick_folder, open_in_explorer, get_image_thumbnail, open_file, read_text_file, find_duplicates])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

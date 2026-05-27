@@ -106,6 +106,10 @@ const STRINGS = {
     onboardingStep10: 'Silme listesi: Listeyi gör, tek tek kurtar, toplu taşı',
     onboardingClose: 'Tamam',
     queueMoveTitle: (n) => `${n} dosya geri dönüşüm kutusuna taşınacak`,
+    deleteProgressTitle: 'Dosyalar taşınıyor...',
+    deleteProgressText: (c, t) => `${c} / ${t} tamamlandı`,
+    deleteProgressRemain: (n) => `${n} dosya taşınamadı`,
+    deleteProgressEta: (s) => `Tahmini kalan: ${s} sn`,
     a11yLargeText: 'Büyük yazı modu',
     a11yHighContrast: 'Yüksek kontrast',
     a11yReducedMotion: 'Animasyonları azalt',
@@ -282,6 +286,10 @@ const STRINGS = {
     onboardingStep10: 'Delete queue: Review, rescue items, then move all',
     onboardingClose: 'Done',
     queueMoveTitle: (n) => `${n} files will be moved to Recycle Bin`,
+    deleteProgressTitle: 'Moving files...',
+    deleteProgressText: (c, t) => `${c} / ${t} completed`,
+    deleteProgressRemain: (n) => `${n} files could not be moved`,
+    deleteProgressEta: (s) => `Estimated remaining: ${s}s`,
     a11yLargeText: 'Large text mode',
     a11yHighContrast: 'High contrast',
     a11yReducedMotion: 'Reduce motion',
@@ -604,6 +612,8 @@ let keptCount = 0;
 let deleteQueue = [];
 let history = [];
 let panelOpen = false;
+let isDeleting = false;
+let deleteProgressStartedAt = 0;
 let activeFilters = new Set(['all']);
 let currentTheme = localStorage.getItem('theme') || 'pink';
 let currentMode = localStorage.getItem('themeMode') || 'dark';
@@ -1294,32 +1304,108 @@ function confirmDeleteAll() {
 }
 
 async function executeDeleteAll() {
+  if (isDeleting) return;
   document.getElementById('confirm-overlay').classList.add('hidden');
-  let failed = 0;
+  isDeleting = true;
 
-  for (const item of [...deleteQueue]) {
-    try {
-      await invoke('delete_file', { path: item.path });
+  const itemsToDelete = [...deleteQueue];
+  const paths = itemsToDelete.map(item => item.path);
+  const itemByPath = new Map(itemsToDelete.map(item => [item.path, item]));
+  showDeleteProgress(0, itemsToDelete.length);
+
+  let unlisten = null;
+  try {
+    const { listen } = window.__TAURI__.event;
+    unlisten = await listen('delete-progress', e => {
+      const payload = e.payload || {};
+      updateDeleteProgress(payload.current || 0, payload.total || itemsToDelete.length);
+    });
+  } catch (_) {}
+
+  let failedCount = 0;
+  try {
+    const result = await invoke('delete_files_batch', { paths });
+    const deletedPaths = result?.deleted_paths || [];
+    const failedPaths = result?.failed_paths || [];
+
+    for (const deletedPath of deletedPaths) {
+      const item = itemByPath.get(deletedPath);
       deletedHistory.push({
         timestamp: new Date().toISOString(),
-        path: item.path,
-        size: item.size || 0,
+        path: deletedPath,
+        size: item?.size || 0,
         source: 'queue'
       });
-      deletedCount++;
-      deleteQueue.splice(deleteQueue.indexOf(item), 1);
-    } catch (e) {
-      failed++;
     }
+
+    deletedCount += deletedPaths.length;
+    failedCount = failedPaths.length;
+    const deletedSet = new Set(deletedPaths);
+    deleteQueue = deleteQueue.filter(item => !deletedSet.has(item.path));
+  } catch (_) {
+    failedCount = itemsToDelete.length;
+  } finally {
+    if (typeof unlisten === 'function') unlisten();
+    localStorage.setItem('deletedHistory', JSON.stringify(deletedHistory.slice(-2000)));
+    hideDeleteProgress();
+    isDeleting = false;
   }
-  localStorage.setItem('deletedHistory', JSON.stringify(deletedHistory.slice(-2000)));
 
   if (panelOpen) { panelOpen = false; document.getElementById('side-panel').classList.remove('open'); }
+  if (failedCount > 0) showToast(t('deleteProgressRemain', failedCount));
   playSound('confirm_delete');
   renderAll();
 }
 function cancelDelete() {
+  if (isDeleting) return;
   document.getElementById('confirm-overlay').classList.add('hidden');
+}
+
+function showDeleteProgress(current, total) {
+  deleteProgressStartedAt = Date.now();
+  let overlay = document.getElementById('delete-progress-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'delete-progress-overlay';
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = `
+    <div id="delete-progress-box">
+      <div class="settings-section-title">${t('deleteProgressTitle')}</div>
+      <div class="dup-progress-wrap">
+        <div class="dup-progress-bar" id="delete-progress-bar" style="width:0%"></div>
+      </div>
+      <div class="dup-progress-text" id="delete-progress-text">${t('deleteProgressText', current, total)}</div>
+      <div class="dup-progress-text" id="delete-progress-eta">${t('deleteProgressEta', 0)}</div>
+    </div>
+  `;
+}
+
+function updateDeleteProgress(current, total) {
+  const bar = document.getElementById('delete-progress-bar');
+  const txt = document.getElementById('delete-progress-text');
+  const etaText = document.getElementById('delete-progress-eta');
+  if (!bar || !txt) return;
+  const safeTotal = total > 0 ? total : 1;
+  const pct = Math.min(100, Math.round((current / safeTotal) * 100));
+  bar.style.width = pct + '%';
+  txt.textContent = t('deleteProgressText', current, total);
+  if (etaText) {
+    if (current >= safeTotal) {
+      etaText.textContent = t('deleteProgressEta', 0);
+    } else {
+      const elapsedSec = Math.max((Date.now() - deleteProgressStartedAt) / 1000, 1);
+      const rate = current / elapsedSec;
+      const remaining = Math.max(safeTotal - current, 0);
+      const eta = rate > 0 ? Math.ceil(remaining / rate) : 0;
+      etaText.textContent = t('deleteProgressEta', eta);
+    }
+  }
+}
+
+function hideDeleteProgress() {
+  const overlay = document.getElementById('delete-progress-overlay');
+  if (overlay) overlay.remove();
 }
 
 async function actionEnter() {
@@ -2096,6 +2182,10 @@ document.getElementById('confirm-yes').onclick = executeDeleteAll;
 document.getElementById('confirm-no').onclick  = cancelDelete;
 
 document.addEventListener('keydown', e => {
+  if (isDeleting) {
+    if (e.key === 'Escape' || e.key === 'Enter') e.preventDefault();
+    return;
+  }
   const item = getCurrentItem();
   if (e.key === 'ArrowLeft')  { e.preventDefault(); actionKeep(); }
   if (e.key === 'ArrowRight') { e.preventDefault(); actionQueue(); }
